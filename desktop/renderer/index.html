@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; style-src 'self'; script-src 'self'; connect-src http://127.0.0.1:* http://localhost:*"
+      content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src http://127.0.0.1:* http://localhost:*"
     />
     <title>KOT Bridge</title>
     <link rel="stylesheet" href="styles.css" />
@@ -24,6 +24,8 @@
           <span class="meta" id="port-label">:5001</span>
         </div>
       </header>
+
+      <div class="error-banner hidden" id="error-banner"></div>
 
       <section class="panel">
         <div class="row">
@@ -56,11 +58,11 @@
 
       <section class="panel">
         <div class="panel-head">
-          <p class="label">Accounts &amp; sessions</p>
+          <p class="label">Connected accounts</p>
           <span class="meta" id="session-count">0 active</span>
         </div>
         <div class="sessions" id="sessions">
-          <p class="empty">Sessions are tracked by the Chrome extension. Orders from each account appear in the print feed below.</p>
+          <p class="empty">Waiting for extension sessions… Open Pathao / Foodmandu tabs with the extension loaded.</p>
         </div>
       </section>
 
@@ -74,6 +76,21 @@
         </div>
       </section>
     </main>
+
+    <div class="modal-backdrop hidden" id="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal">
+        <div class="modal-header">
+          <h2 id="modal-title">Order details</h2>
+          <button type="button" class="icon-btn" id="modal-close" aria-label="Close">✕</button>
+        </div>
+        <div class="modal-body" id="modal-body"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn" id="modal-reprint">Reprint</button>
+          <button type="button" class="btn primary" id="modal-dismiss">Close</button>
+        </div>
+      </div>
+    </div>
+
     <script type="module" src="renderer.js"></script>
   </body>
 </html>

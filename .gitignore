@@ -23,3 +23,8 @@ Desktop.ini
 desktop/dist/
 server/server.log
 server/server.err.log
+
+# Secrets
+server/.env
+*.env
+!*.env.example

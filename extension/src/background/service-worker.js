@@ -13,6 +13,7 @@ const SESSION_TTL_MS = 2 * 60 * 1000;
 
 const state = {
   settings: { ...DEFAULT_SETTINGS },
+  installationId: null,
   engineOnline: false,
   backendReachable: false,
   printerStatus: "unknown",
@@ -22,7 +23,24 @@ const state = {
   seenOrders: new Map(),
 };
 
+async function ensureInstallationId() {
+  if (state.installationId) return state.installationId;
+  const stored = await chrome.storage.local.get(STORAGE_KEYS.INSTALLATION_ID);
+  if (stored[STORAGE_KEYS.INSTALLATION_ID]) {
+    state.installationId = stored[STORAGE_KEYS.INSTALLATION_ID];
+    return state.installationId;
+  }
+  const id =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `inst-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  await chrome.storage.local.set({ [STORAGE_KEYS.INSTALLATION_ID]: id });
+  state.installationId = id;
+  return id;
+}
+
 async function loadPersistedState() {
+  await ensureInstallationId();
   const local = await chrome.storage.local.get([
     STORAGE_KEYS.SETTINGS,
     STORAGE_KEYS.PRINT_FEED,
@@ -169,6 +187,7 @@ async function handleOrderCandidate(candidate) {
     platform,
     orderId,
     accountId: state.settings.accountLabel,
+    installationId: state.installationId,
     customer,
     items: items ?? [],
     sourceUrl: url,
@@ -201,8 +220,23 @@ async function handleReprint(jobId) {
 }
 
 function upsertSession(session) {
-  const key = `${session.platform}:${state.settings.accountLabel}`;
-  state.sessions.set(key, { ...session, at: Date.now() });
+  const key = `${session.platform}:${session.hostname ?? ""}:${state.installationId ?? "local"}`;
+  const entry = {
+    ...session,
+    accountId: state.settings.accountLabel,
+    installationId: state.installationId,
+    at: Date.now(),
+  };
+  state.sessions.set(key, entry);
+  // Mirror session to backend so the Electron desktop dashboard can see it.
+  // installationId keeps two Chrome profiles from colliding on the same accountId.
+  void backendPost(API_PATHS.SESSIONS, {
+    platform: entry.platform,
+    hostname: entry.hostname,
+    title: entry.title,
+    accountId: entry.accountId,
+    installationId: entry.installationId,
+  });
 }
 
 function pruneSessions() {

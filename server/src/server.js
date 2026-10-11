@@ -1,5 +1,7 @@
 import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
+import { translateItems, translationStats } from "./translate.js";
+import { config } from "./config.js";
 
 const DEFAULT_PORT = Number(process.env.PORT) || 5001;
 const DEFAULT_HOST = process.env.HOST || "127.0.0.1";
@@ -13,13 +15,23 @@ export function createKotServer(options = {}) {
   const host = options.host ?? DEFAULT_HOST;
   const onLog = options.onLog ?? ((...args) => console.log(...args));
 
+  const SESSION_TTL_MS = 90 * 1000;
+
   const state = {
     printer: options.printer ?? "ready",
     unmappedCount: 0,
     seenOrders: new Map(),
     printJobs: [],
+    sessions: new Map(),
     dedupeWindowHours: 24,
   };
+
+  function pruneSessions() {
+    const cutoff = Date.now() - SESSION_TTL_MS;
+    for (const [key, s] of state.sessions) {
+      if (s.at < cutoff) state.sessions.delete(key);
+    }
+  }
 
   function json(res, status, body) {
     const payload = JSON.stringify(body);
@@ -69,7 +81,7 @@ export function createKotServer(options = {}) {
       return json(res, 400, { ok: false, error: err.message });
     }
 
-    const { platform, orderId, accountId, customer, items, reprint } = body;
+    const { platform, orderId, accountId, customer, items, reprint, installationId } = body;
     if (!platform || !orderId) {
       return json(res, 400, { ok: false, error: "platform and orderId are required" });
     }
@@ -79,7 +91,7 @@ export function createKotServer(options = {}) {
 
     const dedupeKey = makeDedupeKey({
       platform,
-      accountId: accountId ?? "unknown",
+      accountId: `${accountId ?? "unknown"}:${installationId ?? "local"}`,
       orderId: String(orderId),
     });
 
@@ -95,28 +107,40 @@ export function createKotServer(options = {}) {
     state.seenOrders.set(dedupeKey, Date.now());
     pruneSeenOrders();
 
+    // Translate Romanized English item names → Nepali (Devanagari) via RapidAPI
+    let translatedItems = Array.isArray(items) ? items : [];
+    let translateFailed = false;
+    try {
+      translatedItems = await translateItems(translatedItems);
+    } catch (err) {
+      translateFailed = true;
+      onLog(`[translate] pipeline error: ${err.message}`);
+    }
+
+    const nepaliCount = translatedItems.filter((i) => i.nepaliName).length;
+
     const job = {
       id: randomUUID(),
       platform,
       orderId: String(orderId),
       accountId: accountId ?? null,
+      installationId: installationId ?? null,
       customer: customer ?? null,
-      items: Array.isArray(items) ? items : [],
+      items: translatedItems,
       reprint: Boolean(reprint),
-      status: state.printer === "ready" ? "queued" : "held",
+      // Stay queued until the desktop app (or print worker) marks it printed.
+      status: "queued",
+      printAttempted: false,
+      translated: nepaliCount > 0,
+      translateFailed,
       createdAt: new Date().toISOString(),
     };
 
     state.printJobs.unshift(job);
     if (state.printJobs.length > 200) state.printJobs.length = 200;
-    onLog(`[auto-print] ${platform} #${orderId} (${job.items.length} items) -> ${job.status}`);
-
-    if (state.printer === "ready") {
-      setTimeout(() => {
-        job.status = "printed";
-        job.printedAt = new Date().toISOString();
-      }, 150);
-    }
+    onLog(
+      `[auto-print] ${platform} #${orderId} (${job.items.length} items, ${nepaliCount} translated) -> queued`
+    );
 
     return json(res, 200, {
       ok: true,
@@ -134,7 +158,27 @@ export function createKotServer(options = {}) {
       unmappedCount: state.unmappedCount,
       queueSize: state.printJobs.filter((j) => j.status === "queued" || j.status === "held").length,
       uptimeSec: Math.round(process.uptime()),
+      translation: translationStats(),
     });
+  }
+
+  async function handleTranslate(req, res) {
+    try {
+      const body = await readBody(req);
+      const texts = Array.isArray(body.texts) ? body.texts : [body.text];
+      const out = [];
+      for (const t of texts) {
+        if (!t) {
+          out.push(null);
+          continue;
+        }
+        const { translateText } = await import("./translate.js");
+        out.push(await translateText(String(t)));
+      }
+      return json(res, 200, { ok: true, translations: out, ...translationStats() });
+    } catch (err) {
+      return json(res, 400, { ok: false, error: err.message });
+    }
   }
 
   async function handleDictionary(req, res) {
@@ -148,6 +192,70 @@ export function createKotServer(options = {}) {
 
   async function handleJobs(_req, res) {
     return json(res, 200, { ok: true, jobs: state.printJobs.slice(0, 50) });
+  }
+
+  async function handleClearJobs(_req, res) {
+    state.printJobs = [];
+    return json(res, 200, { ok: true });
+  }
+
+  async function handlePrinter(req, res) {
+    try {
+      const body = await readBody(req);
+      if (body.status) state.printer = String(body.status);
+      return json(res, 200, { ok: true, printer: state.printer });
+    } catch (err) {
+      return json(res, 400, { ok: false, error: err.message });
+    }
+  }
+
+  async function handleSessionsUpsert(req, res) {
+    try {
+      const body = await readBody(req);
+      const { platform, hostname, title, accountId, installationId } = body;
+      if (!platform) return json(res, 400, { ok: false, error: "platform required" });
+      // Key by installationId so two Chrome profiles never collide
+      const key = `${platform}:${installationId ?? hostname ?? accountId ?? "default"}`;
+      state.sessions.set(key, {
+        platform,
+        hostname: hostname ?? null,
+        title: title ?? null,
+        accountId: accountId ?? null,
+        installationId: installationId ?? null,
+        at: Date.now(),
+      });
+      pruneSessions();
+      return json(res, 200, { ok: true });
+    } catch (err) {
+      return json(res, 400, { ok: false, error: err.message });
+    }
+  }
+
+  async function handleJobStatus(req, res, jobId) {
+    try {
+      const body = await readBody(req);
+      const job = state.printJobs.find((j) => j.id === jobId || j.orderId === jobId);
+      if (!job) return json(res, 404, { ok: false, error: "Job not found" });
+      if (body.status) {
+        job.status = String(body.status);
+        if (job.status === "printed" || job.status === "failed") {
+          job.printedAt = new Date().toISOString();
+          job.printError = body.error ?? null;
+        }
+      }
+      if (body.printAttempted != null) job.printAttempted = Boolean(body.printAttempted);
+      return json(res, 200, { ok: true, job });
+    } catch (err) {
+      return json(res, 400, { ok: false, error: err.message });
+    }
+  }
+
+  async function handleSessionsList(_req, res) {
+    pruneSessions();
+    return json(res, 200, {
+      ok: true,
+      sessions: Array.from(state.sessions.values()).sort((a, b) => b.at - a.at),
+    });
   }
 
   const server = createServer(async (req, res) => {
@@ -170,11 +278,30 @@ export function createKotServer(options = {}) {
       if (req.method === "GET" && path === "/api/health") {
         return await handleHealth(req, res);
       }
+      if (req.method === "POST" && path === "/api/translate") {
+        return await handleTranslate(req, res);
+      }
       if (req.method === "POST" && path === "/api/dictionary") {
         return await handleDictionary(req, res);
       }
       if (req.method === "GET" && path === "/api/jobs") {
         return await handleJobs(req, res);
+      }
+      if (req.method === "POST" && path === "/api/jobs/clear") {
+        return await handleClearJobs(req, res);
+      }
+      if (req.method === "POST" && path === "/api/printer") {
+        return await handlePrinter(req, res);
+      }
+      if (req.method === "POST" && path === "/api/sessions") {
+        return await handleSessionsUpsert(req, res);
+      }
+      if (req.method === "GET" && path === "/api/sessions") {
+        return await handleSessionsList(req, res);
+      }
+      const jobStatusMatch = path.match(/^\/api\/jobs\/([^/]+)\/status$/);
+      if (req.method === "POST" && jobStatusMatch) {
+        return await handleJobStatus(req, res, jobStatusMatch[1]);
       }
       return json(res, 404, { ok: false, error: "Not found" });
     } catch (err) {

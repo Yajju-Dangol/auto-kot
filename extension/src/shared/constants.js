@@ -16,6 +16,7 @@ export const STORAGE_KEYS = Object.freeze({
   PRINT_FEED: "printFeed",
   SEEN_ORDERS: "seenOrders",
   ENGINE_STATUS: "engineStatus",
+  INSTALLATION_ID: "installationId",
 });
 
 export const MAX_FEED_ITEMS = 50;
@@ -24,6 +25,8 @@ export const MAX_SEEN_ORDERS = 500;
 export const API_PATHS = Object.freeze({
   AUTO_PRINT: "/api/auto-print",
   HEALTH: "/api/health",
+  SESSIONS: "/api/sessions",
+  JOBS: "/api/jobs",
 });
 
 export const ALARM_NAMES = Object.freeze({
