@@ -1,0 +1,37 @@
+{
+  "name": "kot-bridge-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "KOT Bridge desktop app — local printing engine + operator dashboard",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.autokot.bridge",
+    "productName": "KOT Bridge",
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "../server/src/server.js"
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "../extension/assets/icons/icon128.png"
+    },
+    "directories": {
+      "output": "dist"
+    }
+  },
+  "allowScripts": {
+    "electron@33.4.11": true
+  }
+}

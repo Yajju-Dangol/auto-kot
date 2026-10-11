@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KOT Bridge</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="header">
+        <div class="brand">
+          <span class="brand-dot" id="brand-dot" aria-hidden="true"></span>
+          <div class="brand-text">
+            <h1>KOT Bridge</h1>
+            <p class="brand-sub" id="engine-label">Starting…</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button type="button" class="icon-btn" id="btn-options" title="Settings" aria-label="Open settings">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="8" cy="8" r="2.2" />
+              <path d="M8 1.5v1.7M8 12.8v1.7M1.5 8h1.7M12.8 8h1.7M3.4 3.4l1.2 1.2M11.4 11.4l1.2 1.2M12.6 3.4l-1.2 1.2M4.6 11.4l-1.2 1.2" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <section class="panel">
+        <div class="row">
+          <div>
+            <p class="label">Auto-print engine</p>
+            <p class="value muted" id="backend-status">—</p>
+          </div>
+          <button type="button" class="toggle" id="engine-toggle" role="switch" aria-checked="true">
+            <span class="toggle-thumb"></span>
+          </button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <p class="label">Vendor sessions</p>
+          <span class="meta" id="session-count">0 active</span>
+        </div>
+        <div class="sessions" id="sessions">
+          <p class="empty">No active sessions detected.</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <p class="label">Print feed</p>
+          <div class="panel-actions">
+            <button type="button" class="text-btn" id="btn-test">Test print</button>
+            <button type="button" class="text-btn" id="btn-clear">Clear</button>
+          </div>
+        </div>
+        <div class="feed" id="feed">
+          <p class="empty">No tickets yet.</p>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <div class="footer-item">
+          <span class="label">Printer</span>
+          <span class="value" id="printer-status">—</span>
+        </div>
+        <div class="footer-item">
+          <span class="label">Unmapped</span>
+          <span class="value" id="unmapped-count">0</span>
+        </div>
+      </footer>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

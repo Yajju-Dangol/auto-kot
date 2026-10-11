@@ -1,0 +1,55 @@
+{
+  "manifest_version": 3,
+  "name": "KOT Bridge",
+  "version": "1.0.0",
+  "description": "Autonomous KOT ingestion bridge for Pathao Resto and Foodmandu Partners.",
+  "minimum_chrome_version": "116",
+  "background": {
+    "service_worker": "src/background/service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "KOT Bridge",
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "assets/icons/icon16.png",
+      "32": "assets/icons/icon32.png",
+      "48": "assets/icons/icon48.png",
+      "128": "assets/icons/icon128.png"
+    }
+  },
+  "options_page": "src/options/options.html",
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "32": "assets/icons/icon32.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://resto.pathao.com/*",
+        "https://fmpartner.foodmandu.com/*",
+        "https://partners.foodmandu.com/*"
+      ],
+      "js": ["src/content/content-script.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["src/content/inject.js"],
+      "matches": [
+        "https://resto.pathao.com/*",
+        "https://fmpartner.foodmandu.com/*",
+        "https://partners.foodmandu.com/*"
+      ]
+    }
+  ],
+  "permissions": ["storage", "alarms"],
+  "host_permissions": [
+    "http://127.0.0.1:5001/*",
+    "http://localhost:5001/*"
+  ]
+}

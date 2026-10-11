@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+out/
+*.asar
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS junk
+Thumbs.db
+.DS_Store
+Desktop.ini
+
+# Env
+.env
+.env.*
+
+# Electron
+desktop/dist/
+server/server.log
+server/server.err.log

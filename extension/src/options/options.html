@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KOT Bridge · Settings</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="header">
+        <h1>KOT Bridge Settings</h1>
+        <p class="sub">Local configuration for the KOT ingestion extension.</p>
+      </header>
+
+      <section class="panel">
+        <label class="field">
+          <span class="label">Backend URL</span>
+          <input type="url" id="backend-url" placeholder="http://127.0.0.1:5001" spellcheck="false" />
+          <span class="hint">Local printing engine base URL.</span>
+        </label>
+
+        <label class="field">
+          <span class="label">Account label</span>
+          <input type="text" id="account-label" placeholder="Account #1" spellcheck="false" />
+          <span class="hint">Unique tag for this Chrome profile's vendor accounts.</span>
+        </label>
+
+        <label class="field">
+          <span class="label">Dedup window (hours)</span>
+          <input type="number" id="dedupe-hours" min="1" max="168" step="1" />
+          <span class="hint">How long identical order IDs are suppressed.</span>
+        </label>
+
+        <label class="check">
+          <input type="checkbox" id="auto-print" />
+          <span>Enable auto-print engine</span>
+        </label>
+      </section>
+
+      <div class="actions">
+        <button type="button" class="btn primary" id="btn-save">Save</button>
+        <button type="button" class="btn" id="btn-reset">Reset</button>
+      </div>
+
+      <p class="status" id="status" aria-live="polite"></p>
+    </main>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>
